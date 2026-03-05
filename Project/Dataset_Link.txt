@@ -1,0 +1,33 @@
+https://drive.google.com/drive/folders/1MjQd_vUASO1iC0nvvb4sAl23fwX_y1a2?usp=drive_link
+
+
+
+Note
+
+Files in Order:
+1. preprocessing.py: audio conversion and resampling to 16 kHz
+2. clean_audio.py: silence removal and normalization
+Then: 
+- compare_models.py: LOSO evaluation
+- compare_models_randomsplit.py: random split evaluation
+
+ffmpeg:
+  required
+  description: "Used to convert raw audio files to mono WAV format at 16 kHz"
+  executable_path: "C:\\Users\\Asus\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0.1-full_build\\bin\\ffmpeg.exe"
+
+
+dependencies:
+  python_libraries:
+    - librosa
+    - numpy
+    - scikit-learn
+    - matplotlib
+
+how_to_run:
+  steps:
+    - Install required Python libraries
+    - Ensure FFmpeg is installed and the path is correctly set
+    - Update dataset directory paths if needed
+    - Run compare_models_randomsplit.py for random split evaluation
+    - Run compare_models.py for LOSO evaluation

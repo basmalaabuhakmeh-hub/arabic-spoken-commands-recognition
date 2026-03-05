@@ -1,0 +1,171 @@
+import numpy as np
+import os
+import librosa
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.mixture import GaussianMixture
+
+# =========================
+# CONFIG
+# =========================
+DATA_DIR = r"D:\spoken_rec_clean"
+SR = 16000
+N_MFCC = 13
+TEST_SIZE = 0.2
+RANDOM_STATE = 42
+
+CLASSES = ["aghliq", "ibda", "iftah", "tawaqaf", "yameen", "yasar"]
+
+# =========================
+# FEATURE EXTRACTION
+# =========================
+def extract_features(file_path):
+    y, sr = librosa.load(file_path, sr=SR)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=N_MFCC)
+    mfcc_mean = np.mean(mfcc, axis=1)
+    mfcc_std = np.std(mfcc, axis=1)
+    return np.hstack([mfcc_mean, mfcc_std])  # 26 features
+
+# =========================
+# LOAD DATASET
+# =========================
+X, y = [], []
+
+for label in CLASSES:
+    class_dir = os.path.join(DATA_DIR, label)
+    for file in os.listdir(class_dir):
+        if file.endswith(".wav"):
+            feat = extract_features(os.path.join(class_dir, file))
+            X.append(feat)
+            y.append(label)
+
+X = np.array(X)
+y = np.array(y)
+
+print("Dataset loaded")
+print("X shape:", X.shape)
+print("y shape:", y.shape)
+
+# =========================
+# RANDOM SPLIT
+# =========================
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=TEST_SIZE,
+    random_state=RANDOM_STATE,
+    stratify=y
+)
+
+# Standardization (important for KNN & SVM)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# =========================
+# MODELS
+# =========================
+models = {
+    "KNN": KNeighborsClassifier(n_neighbors=3),
+    "Random Forest": RandomForestClassifier(n_estimators=200, random_state=42),
+    "SVM": SVC(kernel="rbf", C=10, gamma=0.01),
+}
+
+# =========================
+# TRAIN & EVALUATE
+# =========================
+results = {}
+
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    acc = accuracy_score(y_test, y_pred)
+    results[name] = acc
+
+    print("\n==============================")
+    print(f"{name} RESULTS (Random Split)")
+    print("==============================")
+    print(f"Accuracy: {acc*100:.2f}%")
+    print("\nClassification Report:")
+    print(classification_report(y_test, y_pred))
+
+    cm = confusion_matrix(y_test, y_pred, labels=CLASSES)
+
+    plt.figure(figsize=(6,5))
+    plt.imshow(cm, cmap="viridis")
+    plt.title(f"Confusion Matrix – {name} (Random Split)")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.xticks(range(len(CLASSES)), CLASSES, rotation=45)
+    plt.yticks(range(len(CLASSES)), CLASSES)
+
+    for i in range(len(CLASSES)):
+        for j in range(len(CLASSES)):
+            plt.text(j, i, cm[i, j], ha="center", va="center", color="white")
+
+    plt.colorbar()
+    plt.tight_layout()
+    plt.show()
+
+# =========================
+# GMM (CLASS-WISE)
+# =========================
+print("\n==============================")
+print("GMM RESULTS (Random Split)")
+print("==============================")
+
+gmms = {}
+for label in CLASSES:
+    X_class = X_train[y_train == label]
+    gmm = GaussianMixture(n_components=4, covariance_type="diag", random_state=42)
+    gmm.fit(X_class)
+    gmms[label] = gmm
+
+gmm_preds = []
+for x in X_test:
+    scores = {label: gmms[label].score(x.reshape(1, -1)) for label in CLASSES}
+    gmm_preds.append(max(scores, key=scores.get))
+
+gmm_acc = accuracy_score(y_test, gmm_preds)
+results["GMM"] = gmm_acc
+
+print(f"Accuracy: {gmm_acc*100:.2f}%")
+print("\nClassification Report:")
+print(classification_report(y_test, gmm_preds))
+
+cm = confusion_matrix(y_test, gmm_preds, labels=CLASSES)
+
+plt.figure(figsize=(6,5))
+plt.imshow(cm, cmap="viridis")
+plt.title("Confusion Matrix – GMM (Random Split)")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.xticks(range(len(CLASSES)), CLASSES, rotation=45)
+plt.yticks(range(len(CLASSES)), CLASSES)
+
+for i in range(len(CLASSES)):
+    for j in range(len(CLASSES)):
+        plt.text(j, i, cm[i, j], ha="center", va="center", color="white")
+
+plt.colorbar()
+plt.tight_layout()
+plt.show()
+
+# =========================
+# SUMMARY
+# =========================
+print("\n==============================")
+print("RANDOM SPLIT MODEL COMPARISON")
+print("==============================")
+for model, acc in results.items():
+    print(f"{model:<15}: {acc*100:.2f}%")
+
+best = max(results, key=results.get)
+print(f"\nBest model (Random Split): {best}")

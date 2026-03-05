@@ -44,8 +44,4 @@ Run from `Project/Code/` or adjust paths in the scripts.
 - KNN, Random Forest, SVM, GMM  
 - Features: 13 MFCC → mean + std → 26‑dim vector per utterance  
 
-## Deliverables (course)
-
-- Dataset link, source code, 2–4 page report (IEEE style).  
-- Full project description: **Spoken_lang_Proc_Project_Fall2025.pdf**
 
